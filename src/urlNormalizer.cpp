@@ -81,3 +81,91 @@ std::string URLNormalizer::normalizePath(const std::string& path) const {
     return result;
 }
 
+std::string URLNormalizer::normalize(const std::string& url,
+                                     const std::string& baseUrl) {
+
+    if (url.empty())
+        return "";
+
+    // Ignore fragment-only links
+    if (url[0] == '#')
+        return "";
+
+    // Ignore JavaScript links
+    if (url.rfind("javascript:", 0) == 0)
+        return "";
+
+    // Ignore mail links
+    if (url.rfind("mailto:", 0) == 0)
+        return "";
+
+    // Ignore telephone links
+    if (url.rfind("tel:", 0) == 0)
+        return "";
+
+    std::string absoluteURL = url;
+
+    // Resolve relative URL
+    if (!isAbsoluteURL(url)) {
+
+        if (baseUrl.empty())
+            return "";
+
+        absoluteURL = resolveRelativeURL(url, baseUrl);
+    }
+
+    // Remove fragment
+    std::size_t fragmentPos = absoluteURL.find('#');
+    if (fragmentPos != std::string::npos)
+        absoluteURL.erase(fragmentPos);
+
+    // Find scheme
+    std::size_t schemePos = absoluteURL.find("://");
+
+    if (schemePos == std::string::npos)
+        return "";
+
+    std::string scheme = absoluteURL.substr(0, schemePos);
+
+    std::transform(scheme.begin(),
+                   scheme.end(),
+                   scheme.begin(),
+                   [](unsigned char c){ return std::tolower(c); });
+
+    // Find host
+    std::size_t hostStart = schemePos + 3;
+    std::size_t pathStart = absoluteURL.find('/', hostStart);
+
+    std::string host;
+    std::string path = "/";
+
+    if (pathStart == std::string::npos) {
+
+        host = absoluteURL.substr(hostStart);
+
+    } else {
+
+        host = absoluteURL.substr(hostStart,pathStart - hostStart);
+        path = absoluteURL.substr(pathStart);
+    }
+
+    // Convert host to lowercase
+    std::transform(host.begin(),host.end(),host.begin(),[](unsigned char c){ return std::tolower(c); });
+
+    // Remove duplicate '/'
+    std::string cleanedPath;
+
+    for (char ch : path) {
+
+        if (ch == '/' &&
+            !cleanedPath.empty() &&
+            cleanedPath.back() == '/')
+            continue;
+
+        cleanedPath += ch;
+    }
+
+    path = normalizePath(cleanedPath);
+
+    return scheme + "://" + host + path;
+}
