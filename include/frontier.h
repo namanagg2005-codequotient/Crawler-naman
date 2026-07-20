@@ -33,5 +33,4 @@ public:
     int size() const;
 };
 
-#include "frontier.cpp"
 #endif

@@ -1,0 +1,3 @@
+[submodule "external/CollectionLibrary"]
+	path = external/CollectionLibrary
+	url = https://github.com/SuperCodersOrg/DSLibrary-naman.git
