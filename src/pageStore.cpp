@@ -82,14 +82,26 @@ std::string PageStorage::getPage(const std::string& url)
             continue;
 
         std::string currentURL;
-        std::string html;
-
         getline(file, currentURL);
 
-        std::string depth;
-        getline(file, depth);
+        if (currentURL != "URL:" + url)
+        {
+            getline(file, line);
+            getline(file, line);
+            while (getline(file, line))
+            {
+                if (line == "###ENDHTML###")
+                    break;
+            }
 
+            continue;
+        }
+
+        
         getline(file, line);
+        getline(file, line); 
+
+        std::string html;
 
         while (getline(file, line))
         {
@@ -100,11 +112,8 @@ std::string PageStorage::getPage(const std::string& url)
             html += '\n';
         }
 
-        if (currentURL == "URL:" + url)
-            return html;
+        return html;
     }
-
-    return "";
 }
 
 void PageStorage::storePage(const std::string& url,const std::string& html,int depth)

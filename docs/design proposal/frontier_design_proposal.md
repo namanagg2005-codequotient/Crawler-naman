@@ -37,7 +37,7 @@ public:
 
 ## Section 2 : Internal Representation
 
-![Frontier Memory Diagram](../images/frontier_memory_diagram1.png)
+![Frontier Memory Diagram](../images/frontier_memory_diagram.png)
 
 
 The **Frontier** class is implemented as a **Queue** using a **Doubly Linked List** that we have implemented in our DS Library project. This implementation allows elements to be inserted at the rear (enqueue) and removed from the front (dequeue) in **O(1)** time while preserving the order in which URLs are discovered during web crawling.
