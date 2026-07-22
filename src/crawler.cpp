@@ -28,3 +28,162 @@ bool Crawler::shouldVisit(const std::string& url,int depth,int maxDepth)
 
     return true;
 }
+
+void Crawler::extractLinks(const std::string& html,const std::string& baseURL,int currentDepth,int maxDepth)
+{
+    // Don't enqueue links beyond max depth
+    if (currentDepth >= maxDepth)
+        return;
+
+    size_t pos = 0;
+
+    while (true)
+    {
+        // Find the next <a tag
+        pos = html.find("<a", pos);
+
+        if (pos == std::string::npos)
+            break;
+
+        // Find href attribute within this tag
+        size_t hrefPos = html.find("href", pos);
+
+        if (hrefPos == std::string::npos)
+        {
+            pos += 2;
+            continue;
+        }
+
+        size_t tagEnd = html.find('>', pos);
+
+        if (tagEnd == std::string::npos || hrefPos > tagEnd)
+        {
+            pos += 2;
+            continue;
+        }
+
+        // Find '='
+        size_t equalPos = html.find('=', hrefPos);
+
+        if (equalPos == std::string::npos)
+        {
+            pos += 2;
+            continue;
+        }
+
+        equalPos++;
+
+        // Skip spaces
+        while (equalPos < html.length() &&
+               std::isspace(static_cast<unsigned char>(html[equalPos])))
+        {
+            equalPos++;
+        }
+
+        if (equalPos >= html.length())
+            break;
+
+        char quote = html[equalPos];
+
+        // Handle only quoted href values
+        if (quote != '"' && quote != '\'')
+        {
+            pos = equalPos;
+            continue;
+        }
+
+        equalPos++;
+
+        size_t endQuote = html.find(quote, equalPos);
+
+        if (endQuote == std::string::npos)
+            break;
+
+        std::string link =
+            html.substr(equalPos, endQuote - equalPos);
+
+        pos = endQuote + 1;
+
+        if (link.empty())
+            continue;
+
+        // Ignore fragments
+        if (link[0] == '#')
+            continue;
+
+        // Ignore unsupported schemes
+        if (link.rfind("javascript:", 0) == 0)
+            continue;
+
+        if (link.rfind("mailto:", 0) == 0)
+            continue;
+
+        if (link.rfind("tel:", 0) == 0)
+            continue;
+
+        // Normalize the URL
+        std::string normalized =
+            normalizer.normalize(link,baseURL);
+
+        if (normalized.empty())
+            continue;
+
+        // Skip duplicates
+        if (seenStore.contains(normalized))
+            continue;
+
+        frontier.push(
+        {
+            normalized,
+            currentDepth + 1
+        });
+    }
+}
+void Crawler::crawl(const std::string& seedURL,int maxDepth,int maxPages)
+{
+    pageCount = 0;
+
+    // Normalize the seed URL
+    std::string normalizedSeed = normalizer.normalize(seedURL);
+
+    if (normalizedSeed.empty())
+    {
+        std::cerr << "Invalid seed URL.\n";
+        return;
+    }
+
+    frontier.push({normalizedSeed, 0});
+
+    while (!frontier.empty() && pageCount < maxPages)
+    {
+        URLDepth current = frontier.pop();
+
+        // Skip already visited URLs
+        if (seenStore.contains(current.url))
+        {
+            continue;
+        }
+
+        // Mark as visited
+        seenStore.insert(current.url);
+
+        // Fetch page
+        std::string html = fetcher.fetch(current.url);
+
+        if (html.empty())
+        {
+            continue;
+        }
+
+        // Store page
+        pageStorage.storePage(current.url,html,current.depth);
+
+        pageCount++;
+
+        // Extract and enqueue new links
+        extractLinks(html, current.url,current.depth,maxDepth);
+    }
+
+    std::cout << "Crawling completed.\n";
+    std::cout << "Pages Crawled: " << pageCount << '\n';
+}
